@@ -62,16 +62,20 @@ def authenticate(username, password):
 def deposit(username, amount):
     with connect_db() as connection:
         with connection.cursor() as cursor:
-            # 更新余额
-            sql = "UPDATE users SET balance = balance + %s WHERE username = %s"
-            cursor.execute(sql, (amount, username))
-            connection.commit()
-            #记录交易
-            sqlt = "INSERT INTO transfer (username, transtype, amount) VALUES (%s, '存款', %s)"
-            cursor.execute(sqlt,(username, amount))
-            connection.commit()
+            if amount <= 0:
+                return False
+            else:
+                # 更新余额
+                sql = "UPDATE users SET balance = balance + %s WHERE username = %s"
+                cursor.execute(sql, (amount, username))
+                connection.commit()
+                #记录交易
+                sqlt = "INSERT INTO transfer (username, transtype, amount) VALUES (%s, '存款', %s)"
+                cursor.execute(sqlt,(username, amount))
+                connection.commit()
+                return True
 
-# 存款
+# 取款
 def withdraw(username, amount):
     with connect_db() as connection:
         with connection.cursor() as cursor:
@@ -95,11 +99,66 @@ def withdraw(username, amount):
                 print("取款成功.")
                 return True
 
-#查询交易记录
+#查询存取记录
 def select(username):
+     print("select")
      with connect_db() as connection:
         with connection.cursor() as cursor:
             sql = "select * from transfer where username = %s"
             cursor.execute(sql,username)
             return cursor.fetchall()
+
+#查询转账记录
+def interselect(username):
+     print("interselect")
+     with connect_db() as connection:
+        with connection.cursor() as cursor:       
+            sql = "select * from intertransfer where sender_username = %s or receiver_username = %s"
+            u1 = username 
+            u2 = username
+            cursor.execute(sql,(u1, u2))
+            return cursor.fetchall()
         
+
+#转账
+def intertransfer(sender_username, receiver_username, amount):
+    with connect_db() as connection:
+        with connection.cursor() as cursor:
+            # 开始事务
+            connection.begin()
+            
+            try:
+                # 查询发送者当前余额
+                cursor.execute("SELECT balance FROM users WHERE username = %s", (sender_username,))
+                sender_balance = cursor.fetchone()['balance']
+                if sender_balance < amount:
+                    print("转账失败: 发送者余额不足。")
+                    return False
+
+                # 扣除发送者的余额
+                cursor.execute("UPDATE users SET balance = balance - %s WHERE username = %s",
+                               (amount, sender_username))
+
+                # 查询接收者是否存在
+                cursor.execute("SELECT username FROM users WHERE username = %s", (receiver_username,))
+                if not cursor.fetchone():
+                    print("转账失败: 接收者不存在。")
+                    return False
+
+                # 为接收者增加余额
+                cursor.execute("UPDATE users SET balance = balance + %s WHERE username = %s",
+                               (amount, receiver_username))
+
+                # 记录交易
+                cursor.execute("INSERT INTO intertransfer (sender_username, receiver_username, amount) VALUES (%s, %s, %s)",
+                               (sender_username, receiver_username, amount))
+
+                # 提交事务
+                connection.commit()
+                print("转账成功。")
+                return True
+            except Exception as e:
+                # 出现任何异常时回滚事务
+                connection.rollback()
+                print(f"转账失败: {e}")
+                return False

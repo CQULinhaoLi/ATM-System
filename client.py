@@ -68,13 +68,6 @@ def login(username, password):
         put_buttons(['退出'], onclick=[main_page])
 
 
-# # 退出登录函数
-# def logout(client_socket):
-#     # client_socket.send('logout'.encode('utf-8'))
-#     # client_socket.close()
-#     main_page()
-
-
 # 注册界面
 def register_page():
     clear()
@@ -264,6 +257,7 @@ def handle_action(action, client_socket, username):
         request_data = 'transaction_history {}'.format(account_number)
         client_socket.send(request_data.encode('utf-8'))
         response = client_socket.recv(1024).decode('utf-8')
+        print(response)
         put_text("交易记录：" + response)
     elif action == '转账':
         transfer_page(username)
@@ -276,13 +270,6 @@ def handle_action(action, client_socket, username):
         main()
         # pass  # 退出循环
 
-
-# # 账户界面
-# def account_page(username):
-#     clear()
-#     put_text("请选择操作：")
-#     # put_buttons(['查询余额', '存款', '取款', '查询流水', '退出'], onclick=lambda btn_val: handle_action(btn_val, client_socket, username))
-#     put_buttons(['查询余额', '存款', '取款', '查询流水', '退出'], onclick=lambda btn_val: handle_action(btn_val, client_socket, username))
 
 def account_page(username):
     clear()
